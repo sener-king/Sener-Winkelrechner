@@ -270,6 +270,76 @@
             background: rgba(255,255,255,0.2);
             border-radius: 50%;
         }
+
+        /* Neue Stile für Flächenberechnung */
+        .raum-liste {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #1e1e1e;
+            border-radius: 6px;
+        }
+        .raum-item {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #252525;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .raum-name {
+            font-weight: bold;
+        }
+        .raum-flaeche {
+            font-weight: bold;
+            color: #28a745;
+        }
+        .raum-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .raum-delete {
+            background: none;
+            border: none;
+            color: #ff5555;
+            font-size: 1.2em;
+            cursor: pointer;
+        }
+        .raum-delete:hover {
+            background-color: #333;
+        }
+        .total-flaeche {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #252525;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .total-label {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .total-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #28a745;
+        }
+        .print-button {
+            margin-top: 10px;
+            background-color: #007bff;
+        }
+        .print-button:hover {
+            background-color: #0056b3;
+        }
+        .share-button {
+            margin-top: 10px;
+            background-color: #6c757d;
+        }
+        .share-button:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -387,24 +457,60 @@
     <!-- Tab Inhalt: Flächenberechnung -->
     <div id="flaeche" class="tab-content">
         <div class="section">
-            <label for="laenge">Länge (mm):</label>
-            <input type="number" id="laenge" placeholder="z.B. 5000" value="" inputmode="numeric">
+            <label for="raumName">Raumname (z.B. Wohnzimmer):</label>
+            <input type="text" id="raumName" placeholder="z.B. Wohnzimmer" value="" />
 
-            <label for="breite">Breite (mm):</label>
-            <input type="number" id="breite" placeholder="z.B. 3000" value="" inputmode="numeric">
+            <label for="laenge">Länge:</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="laenge" placeholder="z.B. 5" value="" inputmode="numeric" />
+                <select id="laengeEinheit">
+                    <option value="mm">mm</option>
+                    <option value="cm">cm</option>
+                    <option value="m" selected>m</option>
+                </select>
+            </div>
+
+            <label for="breite">Breite:</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="breite" placeholder="z.B. 3" value="" inputmode="numeric" />
+                <select id="breiteEinheit">
+                    <option value="mm">mm</option>
+                    <option value="cm">cm</option>
+                    <option value="m" selected>m</option>
+                </select>
+            </div>
 
             <button onclick="berechneFlaeche()">
-                <span class="icon">⬜</span> Berechnen
+                <span class="icon">⬜</span> Raum hinzufügen
             </button>
         </div>
 
         <div id="ergebnisFlaeche" class="result">
             <h3><span class="icon">⬜</span> Flächen-Ergebnisse</h3>
             <div class="result-item">
-                <span class="result-label">Fläche (m²)</span>
-                <span class="result-value-large" id="flaecheRechteck">-</span>
+                <span class="result-label">Gesamtfläche (m²)</span>
+                <span class="result-value-large" id="gesamtFlaeche">0.000</span>
             </div>
         </div>
+
+        <div class="raum-liste">
+            <h4>📊 Gespeicherte Räume</h4>
+            <div id="raumListe">
+                <!-- Wird dynamisch gefüllt -->
+            </div>
+        </div>
+
+        <div class="total-flaeche">
+            <span class="total-label">Gesamtfläche aller Räume:</span>
+            <span class="total-value" id="totalFlaeche">0.000 m²</span>
+        </div>
+
+        <button class="print-button" onclick="druckeErgebnisse()">
+            <span class="icon">🖨️</span> Drucken
+        </button>
+        <button class="share-button" onclick="versendeErgebnisse()">
+            <span class="icon">📧</span> Per E-Mail versenden
+        </button>
     </div>
 </div>
 
@@ -445,6 +551,7 @@
 
 <script>
 let berechnungsHistorie = JSON.parse(localStorage.getItem('sener_historie')) || [];
+let raumHistorie = JSON.parse(localStorage.getItem('sener_raum_historie')) || [];
 
 // Tab-Wechsel
 function zeigeTab(tabName) {
@@ -573,19 +680,103 @@ function berechneKreis() {
 
 // --- NEUE FLAECHENBERECHNUNG ---
 function berechneFlaeche() {
+    const raumName = document.getElementById('raumName').value.trim();
     const l = parseFloat(document.getElementById('laenge').value);
     const b = parseFloat(document.getElementById('breite').value);
+    const laengeEinheit = document.getElementById('laengeEinheit').value;
+    const breiteEinheit = document.getElementById('breiteEinheit').value;
 
-    if (isNaN(l) || isNaN(b) || l <= 0 || b <= 0) {
-        alert("Bitte geben Sie gültige Länge und Breite ein.");
+    if (!raumName || isNaN(l) || isNaN(b) || l <= 0 || b <= 0) {
+        alert("Bitte geben Sie einen Raumnamen und gültige Länge und Breite ein.");
         return;
     }
 
-    const flaeche = l * b;
+    // Umrechnung in Meter
+    const faktorLaenge = laengeEinheit === 'mm' ? 0.001 : laengeEinheit === 'cm' ? 0.01 : 1;
+    const faktorBreite = breiteEinheit === 'mm' ? 0.001 : breiteEinheit === 'cm' ? 0.01 : 1;
 
-    document.getElementById('flaecheRechteck').textContent = (flaeche / 1000000).toFixed(3);
+    const lInMeter = l * faktorLaenge;
+    const bInMeter = b * faktorBreite;
+    const flaeche = lInMeter * bInMeter;
 
-    document.getElementById('ergebnisFlaeche').style.display = 'block';
+    const raum = {
+        id: Date.now(),
+        name: raumName,
+        laenge: l,
+        breite: b,
+        laengeEinheit: laengeEinheit,
+        breiteEinheit: breiteEinheit,
+        flaeche: flaeche,
+        datum: new Date().toLocaleString('de-DE')
+    };
+
+    raumHistorie.unshift(raum);
+    if (raumHistorie.length > 20) raumHistorie.pop();
+    localStorage.setItem('sener_raum_historie', JSON.stringify(raumHistorie));
+
+    zeigeRaumListe();
+    berechneGesamtFlaeche();
+}
+
+function zeigeRaumListe() {
+    const liste = document.getElementById('raumListe');
+    if (raumHistorie.length === 0) {
+        liste.innerHTML = '<div class="empty-history">Noch keine Räume gespeichert.</div>';
+        return;
+    }
+
+    liste.innerHTML = '';
+    raumHistorie.forEach(raum => {
+        const div = document.createElement('div');
+        div.className = 'raum-item';
+        div.innerHTML = `
+            <div class="raum-name">${raum.name}</div>
+            <div class="raum-flaeche">${raum.flaeche.toFixed(3)} m²</div>
+            <div class="raum-actions">
+                <button class="raum-delete" onclick="loescheRaum(${raum.id})">🗑️</button>
+            </div>
+        `;
+        liste.appendChild(div);
+    });
+}
+
+function loescheRaum(id) {
+    raumHistorie = raumHistorie.filter(r => r.id !== id);
+    localStorage.setItem('sener_raum_historie', JSON.stringify(raumHistorie));
+    zeigeRaumListe();
+    berechneGesamtFlaeche();
+}
+
+function berechneGesamtFlaeche() {
+    const gesamt = raumHistorie.reduce((sum, r) => sum + r.flaeche, 0);
+    document.getElementById('gesamtFlaeche').textContent = gesamt.toFixed(3);
+    document.getElementById('totalFlaeche').textContent = gesamt.toFixed(3) + " m²";
+}
+
+function druckeErgebnisse() {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write('<html><head><title>Flächenberechnung</title></head><body>');
+    printWindow.document.write('<h2>Flächenberechnung</h2>');
+    printWindow.document.write('<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">');
+    printWindow.document.write('<tr><th>Raum</th><th>Länge</th><th>Breite</th><th>Fläche (m²)</th></tr>');
+    raumHistorie.forEach(raum => {
+        printWindow.document.write(`<tr><td>${raum.name}</td><td>${raum.laenge} ${raum.laengeEinheit}</td><td>${raum.breite} ${raum.breiteEinheit}</td><td>${raum.flaeche.toFixed(3)}</td></tr>`);
+    });
+    printWindow.document.write('</table>');
+    printWindow.document.write(`<p><strong>Gesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toFixed(3)} m²</strong></p>`);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+}
+
+function versendeErgebnisse() {
+    const mailtoLink = 'mailto:?subject=Flächenberechnung&body=';
+    let body = 'Flächenberechnung:\n\n';
+    raumHistorie.forEach(raum => {
+        body += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toFixed(3)} m²\n`;
+    });
+    body += `\nGesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toFixed(3)} m²`;
+    window.location.href = mailtoLink + encodeURIComponent(body);
 }
 
 // --- BESTEHENDE HISTORIE-FUNKTIONEN ---
@@ -667,6 +858,9 @@ function schliessePopup() {
 
 document.addEventListener('DOMContentLoaded', () => {
     berechnungsHistorie = JSON.parse(localStorage.getItem('sener_historie')) || [];
+    raumHistorie = JSON.parse(localStorage.getItem('sener_raum_historie')) || [];
+    zeigeRaumListe();
+    berechneGesamtFlaeche();
 });
 
 // Service Worker registrieren

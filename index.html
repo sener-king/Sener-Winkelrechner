@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sener Winkelrechner</title>
+    <title>Sener Flächenberechnung</title>
     <!-- Link zum Web App Manifest -->
     <link rel="manifest" href="manifest.json">
     <!-- Optional: Icon für iOS -->
@@ -333,6 +333,13 @@
         .print-button:hover {
             background-color: #0056b3;
         }
+        .pdf-button {
+            margin-top: 10px;
+            background-color: #FF6600;
+        }
+        .pdf-button:hover {
+            background-color: #e65c00;
+        }
         .share-button {
             margin-top: 10px;
             background-color: #6c757d;
@@ -406,7 +413,7 @@
 <body>
 
 <div class="container">
-    <h1>Sener Winkelrechner</h1>
+    <h1>Sener Flächenberechnung</h1>
 
     <!-- Tabs -->
     <div class="tabs">
@@ -495,7 +502,13 @@
     <div id="kreis" class="tab-content">
         <div class="section">
             <label for="durchmesser">Durchmesser (mm):</label>
-            <input type="number" id="durchmesser" placeholder="z.B. 1000" value="" inputmode="numeric">
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="durchmesser" placeholder="z.B. 1000" value="" inputmode="numeric" />
+                <select id="durchmesserEinheit">
+                    <option value="mm">mm</option>
+                    <option value="zoll">Zoll</option>
+                </select>
+            </div>
 
             <button onclick="berechneKreis()">
                 <span class="icon">⭕</span> Berechnen
@@ -545,12 +558,28 @@
             </div>
 
             <button onclick="berechneFlaeche()">
-                <span class="icon">⬜</span> Raum berechnen
+                <span class="icon">⬜</span> Berechnen
             </button>
 
-            <button onclick="speichereRaum()" class="speichern-button">
-                <span class="icon">💾</span> Raum speichern
-            </button>
+            <div id="ergebnisFlaeche" class="result">
+                <h3><span class="icon">⬜</span> Flächen-Ergebnisse</h3>
+                <div class="result-item">
+                    <span class="result-label">Gesamtfläche (m²)</span>
+                    <span class="result-value-large" id="gesamtFlaeche">0.000</span>
+                </div>
+            </div>
+
+            <div class="raum-liste">
+                <h4>📊 Gespeicherte Räume</h4>
+                <div id="raumListe">
+                    <!-- Wird dynamisch gefüllt -->
+                </div>
+            </div>
+
+            <div class="total-flaeche">
+                <span class="total-label">Gesamtfläche aller Räume:</span>
+                <span class="total-value" id="totalFlaeche">0.000 m²</span>
+            </div>
 
             <button onclick="speichereWohnung()" class="speichern-button">
                 <span class="icon">🏠</span> Gesamte Wohnung speichern
@@ -559,37 +588,20 @@
             <button onclick="oeffneHistorie()" class="historie-button">
                 <span class="icon">📜</span> Historie
             </button>
-        </div>
 
-        <div id="ergebnisFlaeche" class="result">
-            <h3><span class="icon">⬜</span> Flächen-Ergebnisse</h3>
-            <div class="result-item">
-                <span class="result-label">Gesamtfläche (m²)</span>
-                <span class="result-value-large" id="gesamtFlaeche">0.000</span>
-            </div>
+            <button class="print-button" onclick="druckeErgebnisse()">
+                <span class="icon">🖨️</span> Drucken
+            </button>
+            <button class="pdf-button" onclick="speichereAlsPDF()">
+                <span class="icon">📄</span> Als PDF speichern
+            </button>
+            <button class="whatsapp-button" onclick="versendePerWhatsApp()">
+                <span class="icon">💬</span> Per WhatsApp versenden
+            </button>
+            <button class="share-button" onclick="versendeErgebnisse()">
+                <span class="icon">📧</span> Per E-Mail versenden
+            </button>
         </div>
-
-        <div class="raum-liste">
-            <h4>📊 Gespeicherte Räume</h4>
-            <div id="raumListe">
-                <!-- Wird dynamisch gefüllt -->
-            </div>
-        </div>
-
-        <div class="total-flaeche">
-            <span class="total-label">Gesamtfläche aller Räume:</span>
-            <span class="total-value" id="totalFlaeche">0.000 m²</span>
-        </div>
-
-        <button class="print-button" onclick="druckeErgebnisse()">
-            <span class="icon">🖨️</span> Drucken
-        </button>
-        <button class="share-button" onclick="versendeErgebnisse()">
-            <span class="icon">📧</span> Per E-Mail versenden
-        </button>
-        <button class="whatsapp-button" onclick="versendePerWhatsApp()">
-            <span class="icon">💬</span> Per WhatsApp versenden
-        </button>
     </div>
 </div>
 
@@ -761,11 +773,17 @@ function berechneDreieck() {
 
 // --- NEUE KREISBERECHNUNG ---
 function berechneKreis() {
-    const d = parseFloat(document.getElementById('durchmesser').value);
+    let d = parseFloat(document.getElementById('durchmesser').value);
+    const einheit = document.getElementById('durchmesserEinheit').value;
 
     if (isNaN(d) || d <= 0) {
         alert("Bitte geben Sie einen gültigen Durchmesser ein.");
         return;
+    }
+
+    // Umrechnung in mm
+    if (einheit === 'zoll') {
+        d = d * 25.4; // 1 Zoll = 25.4 mm
     }
 
     const r = d / 2;
@@ -780,34 +798,6 @@ function berechneKreis() {
 
 // --- NEUE FLAECHENBERECHNUNG ---
 function berechneFlaeche() {
-    const raumName = document.getElementById('raumName').value.trim();
-    const l = parseFloat(document.getElementById('laenge').value);
-    const b = parseFloat(document.getElementById('breite').value);
-    const laengeEinheit = document.getElementById('laengeEinheit').value;
-    const breiteEinheit = document.getElementById('breiteEinheit').value;
-
-    if (!raumName || isNaN(l) || isNaN(b) || l <= 0 || b <= 0) {
-        alert("Bitte geben Sie einen Raumnamen und gültige Länge und Breite ein.");
-        return;
-    }
-
-    // Umrechnung in Meter
-    const faktorLaenge = laengeEinheit === 'mm' ? 0.001 : laengeEinheit === 'cm' ? 0.01 : 1;
-    const faktorBreite = breiteEinheit === 'mm' ? 0.001 : breiteEinheit === 'cm' ? 0.01 : 1;
-
-    const lInMeter = l * faktorLaenge;
-    const bInMeter = b * faktorBreite;
-    const flaeche = lInMeter * bInMeter;
-
-    // Nur berechnen, nicht speichern
-    document.getElementById('gesamtFlaeche').textContent = flaeche.toLocaleString('de-DE');
-    document.getElementById('totalFlaeche').textContent = flaeche.toLocaleString('de-DE') + " m²";
-
-    // Speichern-Button aktivieren
-    document.getElementById('ergebnisFlaeche').style.display = 'block';
-}
-
-function speichereRaum() {
     const raumName = document.getElementById('raumName').value.trim();
     const l = parseFloat(document.getElementById('laenge').value);
     const b = parseFloat(document.getElementById('breite').value);
@@ -891,7 +881,6 @@ function zeigeRaumListe() {
             <div class="raum-flaeche">${raum.flaeche.toLocaleString('de-DE')} m²</div>
             <div class="raum-actions">
                 <button class="raum-delete" onclick="loescheRaum(${raum.id})">🗑️</button>
-                <button class="raum-send" onclick="versendeRaum(${raum.id})">💬</button>
             </div>
         `;
         liste.appendChild(div);
@@ -903,20 +892,6 @@ function loescheRaum(id) {
     localStorage.setItem('sener_raum_historie', JSON.stringify(raumHistorie));
     zeigeRaumListe();
     berechneGesamtFlaeche();
-}
-
-function versendeRaum(id) {
-    const raum = raumHistorie.find(r => r.id === id);
-    if (!raum) return;
-
-    let message = `Raum: ${raum.name}\n`;
-    message += `Länge: ${raum.laenge} ${raum.laengeEinheit}\n`;
-    message += `Breite: ${raum.breite} ${raum.breiteEinheit}\n`;
-    message += `Fläche: ${raum.flaeche.toLocaleString('de-DE')} m²\n`;
-    message += `\nGesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toLocaleString('de-DE')} m²`;
-
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
 }
 
 function berechneGesamtFlaeche() {
@@ -939,6 +914,53 @@ function druckeErgebnisse() {
     printWindow.document.write('</body></html>');
     printWindow.document.close();
     printWindow.print();
+}
+
+function speichereAlsPDF() {
+    // Verwendet ein externes Tool (jsPDF) über CDN
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    script.onload = function() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        let y = 20;
+        doc.setFontSize(16);
+        doc.text('Flächenberechnung', 10, y);
+        y += 10;
+
+        doc.setFontSize(12);
+        doc.text('Datum: ' + new Date().toLocaleString('de-DE'), 10, y);
+        y += 10;
+
+        doc.text('Raumname', 10, y);
+        doc.text('Länge', 80, y);
+        doc.text('Breite', 110, y);
+        doc.text('Fläche (m²)', 150, y);
+        y += 10;
+
+        doc.setDrawColor(0);
+        doc.line(10, y - 5, 200, y - 5);
+
+        raumHistorie.forEach(raum => {
+            doc.text(raum.name, 10, y);
+            doc.text(raum.laenge + ' ' + raum.laengeEinheit, 80, y);
+            doc.text(raum.breite + ' ' + raum.breiteEinheit, 110, y);
+            doc.text(raum.flaeche.toLocaleString('de-DE'), 150, y);
+            y += 10;
+            if (y > 280) { // Neue Seite, wenn unten angekommen
+                doc.addPage();
+                y = 20;
+            }
+        });
+
+        y += 10;
+        doc.setFontSize(14);
+        doc.text('Gesamtfläche: ' + raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toLocaleString('de-DE') + ' m²', 10, y);
+
+        doc.save('Flaechenberechnung.pdf');
+    };
+    document.head.appendChild(script);
 }
 
 function versendeErgebnisse() {

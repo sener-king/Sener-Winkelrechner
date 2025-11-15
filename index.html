@@ -340,6 +340,13 @@
         .share-button:hover {
             background-color: #5a6268;
         }
+        .whatsapp-button {
+            margin-top: 10px;
+            background-color: #25D366;
+        }
+        .whatsapp-button:hover {
+            background-color: #1da85f;
+        }
     </style>
 </head>
 <body>
@@ -510,6 +517,9 @@
         </button>
         <button class="share-button" onclick="versendeErgebnisse()">
             <span class="icon">📧</span> Per E-Mail versenden
+        </button>
+        <button class="whatsapp-button" onclick="versendePerWhatsApp()">
+            <span class="icon">💬</span> Per WhatsApp versenden
         </button>
     </div>
 </div>
@@ -731,7 +741,7 @@ function zeigeRaumListe() {
         div.className = 'raum-item';
         div.innerHTML = `
             <div class="raum-name">${raum.name}</div>
-            <div class="raum-flaeche">${raum.flaeche.toFixed(3)} m²</div>
+            <div class="raum-flaeche">${raum.flaeche.toLocaleString('de-DE')} m²</div>
             <div class="raum-actions">
                 <button class="raum-delete" onclick="loescheRaum(${raum.id})">🗑️</button>
             </div>
@@ -749,8 +759,8 @@ function loescheRaum(id) {
 
 function berechneGesamtFlaeche() {
     const gesamt = raumHistorie.reduce((sum, r) => sum + r.flaeche, 0);
-    document.getElementById('gesamtFlaeche').textContent = gesamt.toFixed(3);
-    document.getElementById('totalFlaeche').textContent = gesamt.toFixed(3) + " m²";
+    document.getElementById('gesamtFlaeche').textContent = gesamt.toLocaleString('de-DE');
+    document.getElementById('totalFlaeche').textContent = gesamt.toLocaleString('de-DE') + " m²";
 }
 
 function druckeErgebnisse() {
@@ -760,10 +770,10 @@ function druckeErgebnisse() {
     printWindow.document.write('<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">');
     printWindow.document.write('<tr><th>Raum</th><th>Länge</th><th>Breite</th><th>Fläche (m²)</th></tr>');
     raumHistorie.forEach(raum => {
-        printWindow.document.write(`<tr><td>${raum.name}</td><td>${raum.laenge} ${raum.laengeEinheit}</td><td>${raum.breite} ${raum.breiteEinheit}</td><td>${raum.flaeche.toFixed(3)}</td></tr>`);
+        printWindow.document.write(`<tr><td>${raum.name}</td><td>${raum.laenge} ${raum.laengeEinheit}</td><td>${raum.breite} ${raum.breiteEinheit}</td><td>${raum.flaeche.toLocaleString('de-DE')}</td></tr>`);
     });
     printWindow.document.write('</table>');
-    printWindow.document.write(`<p><strong>Gesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toFixed(3)} m²</strong></p>`);
+    printWindow.document.write(`<p><strong>Gesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toLocaleString('de-DE')} m²</strong></p>`);
     printWindow.document.write('</body></html>');
     printWindow.document.close();
     printWindow.print();
@@ -773,10 +783,22 @@ function versendeErgebnisse() {
     const mailtoLink = 'mailto:?subject=Flächenberechnung&body=';
     let body = 'Flächenberechnung:\n\n';
     raumHistorie.forEach(raum => {
-        body += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toFixed(3)} m²\n`;
+        body += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²\n`;
     });
-    body += `\nGesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toFixed(3)} m²`;
+    body += `\nGesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toLocaleString('de-DE')} m²`;
     window.location.href = mailtoLink + encodeURIComponent(body);
+}
+
+function versendePerWhatsApp() {
+    let message = 'Flächenberechnung:\n\n';
+    raumHistorie.forEach(raum => {
+        message += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²\n`;
+    });
+    message += `\nGesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toLocaleString('de-DE')} m²`;
+
+    // WhatsApp-URL mit encodeURI
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
 }
 
 // --- BESTEHENDE HISTORIE-FUNKTIONEN ---

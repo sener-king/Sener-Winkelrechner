@@ -518,6 +518,9 @@
     <!-- Tab Inhalt: Flächenberechnung -->
     <div id="flaeche" class="tab-content">
         <div class="section">
+            <label for="ueberschrift">Berechnung Überschrift z.B. Wohnung, Lager, fläche</label>
+            <input type="text" id="ueberschrift" placeholder="z.B. Wohnung 1" value="" />
+
             <label for="raumName">Raumname (z.B. Wohnzimmer):</label>
             <input type="text" id="raumName" placeholder="z.B. Wohnzimmer" value="" />
 
@@ -629,7 +632,7 @@
 <div id="flaecheHistoriePopup" class="popup">
     <div class="popup-content">
         <div class="popup-header">
-            <span>🏠 Historie der gespeicherten Räume und Wohnungen</span>
+            <span>🏠 Historie der gespeicherten Wohnungen</span>
             <button class="close-btn" onclick="schliesseFlaecheHistorie()">×</button>
         </div>
         <div class="popup-body">
@@ -844,8 +847,11 @@ function speichereRaum() {
 }
 
 function speichereWohnung() {
-    const wohnungName = prompt("Geben Sie einen Namen für diese Wohnung ein (z.B. Wohnung 1):");
-    if (!wohnungName) return;
+    const wohnungName = document.getElementById('ueberschrift').value.trim();
+    if (!wohnungName) {
+        alert("Bitte geben Sie einen Namen für die Wohnung ein.");
+        return;
+    }
 
     if (raumHistorie.length === 0) {
         alert("Sie müssen mindestens einen Raum hinzugefügt haben, bevor Sie die Wohnung speichern können.");
@@ -964,48 +970,25 @@ function oeffneHistorie() {
 
 function zeigeFlaecheHistorieImPopup() {
     const liste = document.getElementById('flaecheHistoryListe');
-    if (raumHistorie.length === 0 && wohnungHistorie.length === 0) {
-        liste.innerHTML = '<div class="empty-history">Noch keine Räume oder Wohnungen gespeichert.</div>';
+    if (wohnungHistorie.length === 0) {
+        liste.innerHTML = '<div class="empty-history">Noch keine Wohnungen gespeichert.</div>';
         return;
     }
 
     liste.innerHTML = '';
-
-    // Wohnungen zuerst
-    if (wohnungHistorie.length > 0) {
-        liste.innerHTML += '<div style="margin-bottom: 10px; font-weight: bold; color: #28a745;">Wohnungen:</div>';
-        wohnungHistorie.forEach(wohnung => {
-            const div = document.createElement('div');
-            div.className = 'wohnung-item';
-            div.innerHTML = `
-                <div class="wohnung-name">${wohnung.name}</div>
-                <div class="wohnung-flaeche">${wohnung.gesamtflaeche.toLocaleString('de-DE')} m²</div>
-                <div class="wohnung-actions">
-                    <button class="wohnung-delete" onclick="loescheWohnung(${wohnung.id}, event)">🗑️</button>
-                    <button class="wohnung-send" onclick="versendeWohnung(${wohnung.id}, event)">💬</button>
-                </div>
-            `;
-            liste.appendChild(div);
-        });
-    }
-
-    // Räume danach
-    if (raumHistorie.length > 0) {
-        liste.innerHTML += '<div style="margin-top: 20px; margin-bottom: 10px; font-weight: bold; color: #28a745;">Einzelne Räume:</div>';
-        raumHistorie.forEach(raum => {
-            const div = document.createElement('div');
-            div.className = 'raum-item';
-            div.innerHTML = `
-                <div class="raum-name">${raum.name}</div>
-                <div class="raum-flaeche">${raum.flaeche.toLocaleString('de-DE')} m²</div>
-                <div class="raum-actions">
-                    <button class="raum-delete" onclick="loescheRaum(${raum.id})">🗑️</button>
-                    <button class="raum-send" onclick="versendeRaum(${raum.id})">💬</button>
-                </div>
-            `;
-            liste.appendChild(div);
-        });
-    }
+    wohnungHistorie.forEach(wohnung => {
+        const div = document.createElement('div');
+        div.className = 'wohnung-item';
+        div.innerHTML = `
+            <div class="wohnung-name">${wohnung.name}</div>
+            <div class="wohnung-flaeche">${wohnung.gesamtflaeche.toLocaleString('de-DE')} m²</div>
+            <div class="wohnung-actions">
+                <button class="wohnung-delete" onclick="loescheWohnung(${wohnung.id}, event)">🗑️</button>
+                <button class="wohnung-send" onclick="versendeWohnung(${wohnung.id}, event)">💬</button>
+            </div>
+        `;
+        liste.appendChild(div);
+    });
 }
 
 function loescheWohnung(id, event) {

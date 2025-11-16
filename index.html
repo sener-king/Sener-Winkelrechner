@@ -747,31 +747,11 @@
     </div>
 </div>
 
-<!-- Popup für Flächen-Historie -->
-<div id="flaecheHistoriePopup" class="popup">
-    <div class="popup-content">
-        <div class="popup-header">
-            <span>🟣 Historie der gespeicherten Berechnungen</span>
-            <button class="close-btn" onclick="schliesseFlaecheHistorie()">×</button>
-        </div>
-        <div class="popup-body">
-            <div class="history-list" id="flaecheHistoryListe">
-                <!-- Wird dynamisch gefüllt -->
-            </div>
-        </div>
-        <div style="padding: 16px; background: #1e1e1e; border-top: 1px solid #333;">
-            <button onclick="zurueckZurFlaeche()" style="width:100%; padding:12px; background-color:#28a745; color:white; border:none; border-radius:6px; font-weight:bold; font-size:16px;">
-                🔙 Zurück zur Fläche
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- Popup für Wohnungshistorie -->
 <div id="wohnungHistoriePopup" class="popup">
     <div class="popup-content">
         <div class="popup-header">
-            <span>🏠 Historie der gespeicherten Wohnungen</span>
+            <span>🏠 Historie der gespeicherten Berechnungen</span>
             <button class="close-btn" onclick="schliesseWohnungHistorie()">×</button>
         </div>
         <div class="popup-body">
@@ -791,7 +771,6 @@
 // --- GLOBALE VARIABLEN ---
 let berechnungsHistorie = JSON.parse(localStorage.getItem('sener_historie')) || [];
 let raumHistorie = JSON.parse(localStorage.getItem('sener_raum_historie')) || [];
-let berechnungHistorie = JSON.parse(localStorage.getItem('sener_berechnung_historie')) || []; // <- BEHAALT (nicht gelöscht)
 let wohnungHistorie = JSON.parse(localStorage.getItem('sener_wohnung_historie')) || [];
 
 // --- ZENTRALE ROHR-NORMEN-TABELLE ---
@@ -1090,9 +1069,9 @@ function speichereBerechnung() {
         datum: new Date().toLocaleString('de-DE')
     };
 
-    berechnungHistorie.unshift(berechnung);
-    if (berechnungHistorie.length > 20) berechnungHistorie.pop();
-    localStorage.setItem('sener_berechnung_historie', JSON.stringify(berechnungHistorie));
+    wohnungHistorie.unshift(berechnung);
+    if (wohnungHistorie.length > 20) wohnungHistorie.pop();
+    localStorage.setItem('sener_wohnung_historie', JSON.stringify(wohnungHistorie));
 
     alert(`Berechnung "${berechnungName}" wurde erfolgreich gespeichert.`);
 }
@@ -1344,7 +1323,7 @@ function schliesseWohnungHistorie() {
 function zurueckZurFlaeche() {
     schliesseWohnungHistorie();
     setTimeout(() => {
-        zeigeTab(event, 'flaeche'); // <- KORRIGIERT: 'event' korrekt übergeben
+        zeigeTab(null, 'flaeche'); // <- KORRIGIERT: 'null' für das event-Objekt
     }, 300);
 }
 
@@ -1383,7 +1362,7 @@ function ladeWertAusWinkelHistorie(id) {
         document.getElementById('istMasse').value = eintrag.input;
         document.getElementById('bereich').value = eintrag.bereich;
         // Stelle sicher, dass der Winkel-Tab aktiv ist
-        zeigeTab(null, 'winkel'); // <- KORRIGIERT: 'null' für event
+        zeigeTab(null, 'winkel'); // <- KORRIGIERT: 'null' für das event-Objekt
         setTimeout(berechneMassen, 300);
     }
 }
@@ -1402,7 +1381,7 @@ function schliesseWinkelHistorie() {
 function zurueckZurWinkelBerechnung() {
     schliesseWinkelHistorie();
     setTimeout(() => {
-        zeigeTab(null, 'winkel'); // <- KORRIGIERT: 'null' für event
+        zeigeTab(null, 'winkel'); // <- KORRIGIERT: 'null' für das event-Objekt
     }, 300);
 }
 
@@ -1427,16 +1406,15 @@ function schliessePopup() {
 document.addEventListener('DOMContentLoaded', () => {
     berechnungsHistorie = JSON.parse(localStorage.getItem('sener_historie')) || [];
     raumHistorie = JSON.parse(localStorage.getItem('sener_raum_historie')) || [];
-    berechnungHistorie = JSON.parse(localStorage.getItem('sener_berechnung_historie')) || []; // <- BEHAALT
-    wohnungHistorie = JSON.parse(localStorage.getItem('sener_wohnung_historie')) || [];
+    wohnungHistorie = JSON.parse(localStorage.getItem('sener_wohnung_historie')) || []; // <- KORRIGIERT: Variable hinzugefügt
     zeigeRaumListe();
     berechneGesamtFlaeche();
 });
 
-// Service Worker registrieren
+// Service Worker registrieren (relativer Pfad)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js') // Achten Sie auf den korrekten Pfad
+    navigator.serviceWorker.register('sw.js') // Relativer Pfad
       .then(registration => {
         console.log('SW registriert: ', registration);
       })

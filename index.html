@@ -606,6 +606,9 @@
                 Keine Norm gefunden.
             </div>
 
+            <label for="hoehe">Höhe/Tiefe (mm):</label>
+            <input type="number" id="hoehe" placeholder="z.B. 500" value="" inputmode="numeric" oninput="berechneKreis()" />
+
             <button onclick="berechneKreis()" class="button-secondary">
                 <span class="icon">⭕</span> Berechnen (optional)
             </button>
@@ -620,6 +623,10 @@
             <div class="result-item">
                 <span class="result-label">Fläche (m²)</span>
                 <span class="result-value-small" id="flaecheKreis">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Volumen (m³)</span>
+                <span class="result-value-small" id="volumenKreis">-</span>
             </div>
         </div>
     </div>
@@ -762,11 +769,35 @@
     </div>
 </div>
 
+<!-- Popup für Einzelne Flächen-Historie -->
+<div id="einzelneFlaecheHistoriePopup" class="popup">
+    <div class="popup-content">
+        <div class="popup-header">
+            <span>🔍 Details der gespeicherten Berechnung</span>
+            <button class="close-btn" onclick="schliesseEinzelneFlaecheHistorie()">×</button>
+        </div>
+        <div class="popup-body">
+            <div id="einzelneFlaecheInhalt">
+                <!-- Wird dynamisch gefüllt -->
+            </div>
+        </div>
+        <div style="padding: 16px; background: #1e1e1e; border-top: 1px solid #333; display: flex; gap: 10px;">
+            <button onclick="ladeBerechnungAusHistorie()" style="flex: 1; padding:12px; background-color:#28a745; color:white; border:none; border-radius:6px; font-weight:bold; font-size:14px;">
+                🔁 Laden
+            </button>
+            <button onclick="versendeAusgewaehlteBerechnung()" style="flex: 1; padding:12px; background-color:#25D366; color:white; border:none; border-radius:6px; font-weight:bold; font-size:14px;">
+                💬 Versenden
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 // --- Globale Variablen ---
 let winkelHistorie = JSON.parse(localStorage.getItem('sener_winkel_historie')) || [];
 let flaecheHistorie = JSON.parse(localStorage.getItem('sener_flaeche_historie')) || [];
 let raumHistorie = JSON.parse(localStorage.getItem('sener_raum_historie')) || [];
+let ausgewaehlteBerechnung = null; // Zum Speichern der ausgewählten Berechnung
 
 // Tab-Wechsel
 function zeigeTab(tabName) {
@@ -1012,10 +1043,12 @@ function updateDurchmesserFromNorm() {
 function berechneKreis() {
     let d = parseFloat(document.getElementById('durchmesser').value);
     const einheit = document.getElementById('durchmesserEinheit').value;
+    let h = parseFloat(document.getElementById('hoehe').value);
 
     if (isNaN(d) || d <= 0) {
         document.getElementById('umfangKreis').textContent = "-";
         document.getElementById('flaecheKreis').textContent = "-";
+        document.getElementById('volumenKreis').textContent = "-";
         return;
     }
 
@@ -1028,8 +1061,15 @@ function berechneKreis() {
     const umfang = Math.PI * d;
     const flaeche = Math.PI * r * r;
 
+    if (isNaN(h) || h <= 0) {
+        h = 0;
+    }
+
+    const volumen = flaeche * (h / 1000); // Höhe in mm, Volumen in m³
+
     document.getElementById('umfangKreis').textContent = (umfang / 1000).toFixed(3) + " m";
     document.getElementById('flaecheKreis').textContent = (flaeche / 1000000).toFixed(3) + " m²";
+    document.getElementById('volumenKreis').textContent = (volumen / 1000000).toFixed(3) + " m³";
 }
 
 // --- FLAECHENBERECHNUNG ---
@@ -1303,11 +1343,85 @@ function zeigeFlaecheHistorieImPopup() {
             <div class="wohnung-flaeche">${berechnung.gesamtflaeche.toLocaleString('de-DE')} m²</div>
             <div class="wohnung-actions">
                 <button class="wohnung-delete" onclick="loescheFlaecheBerechnung(${berechnung.id}, event)">🗑️</button>
-                <button class="wohnung-send" onclick="versendeFlaecheBerechnung(${berechnung.id}, event)">💬</button>
+                <button class="wohnung-send" onclick="oeffneEinzelneFlaecheHistorie(${berechnung.id})">🔍</button>
             </div>
         `;
         liste.appendChild(div);
     });
+}
+
+function oeffneEinzelneFlaecheHistorie(id) {
+    const berechnung = flaecheHistorie.find(b => b.id === id);
+    if (!berechnung) return;
+
+    ausgewaehlteBerechnung = berechnung;
+
+    const inhalt = document.getElementById('einzelneFlaecheInhalt');
+    inhalt.innerHTML = `
+        <h4 style="color: #28a745;">${berechnung.name}</h4>
+        <p><strong>Datum:</strong> ${berechnung.datum}</p>
+        <p><strong>Gesamtfläche:</strong> ${berechnung.gesamtflaeche.toLocaleString('de-DE')} m²</p>
+        <h5>Einzelne Räume:</h5>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <tr style="background-color: #2a2a2a;">
+                <th style="border: 1px solid #333; padding: 5px;">Name</th>
+                <th style="border: 1px solid #333; padding: 5px;">Länge</th>
+                <th style="border: 1px solid #333; padding: 5px;">Breite</th>
+                <th style="border: 1px solid #333; padding: 5px;">Fläche (m²)</th>
+            </tr>
+    `;
+    berechnung.raeume.forEach(raum => {
+        inhalt.innerHTML += `
+            <tr>
+                <td style="border: 1px solid #333; padding: 5px;">${raum.name}</td>
+                <td style="border: 1px solid #333; padding: 5px;">${raum.laenge} ${raum.laengeEinheit}</td>
+                <td style="border: 1px solid #333; padding: 5px;">${raum.breite} ${raum.breiteEinheit}</td>
+                <td style="border: 1px solid #333; padding: 5px;">${raum.flaeche.toLocaleString('de-DE')}</td>
+            </tr>
+        `;
+    });
+    inhalt.innerHTML += '</table>';
+
+    document.getElementById('einzelneFlaecheHistoriePopup').style.display = 'flex';
+}
+
+function schliesseEinzelneFlaecheHistorie() {
+    document.getElementById('einzelneFlaecheHistoriePopup').style.display = 'none';
+    ausgewaehlteBerechnung = null;
+}
+
+function ladeBerechnungAusHistorie() {
+    if (!ausgewaehlteBerechnung) return;
+
+    // Überschrift laden
+    document.getElementById('ueberschrift').value = ausgewaehlteBerechnung.name;
+
+    // Räume laden
+    raumHistorie = [...ausgewaehlteBerechnung.raeume]; // Kopie der Räume
+    localStorage.setItem('sener_raum_historie', JSON.stringify(raumHistorie));
+
+    zeigeRaumListe();
+    berechneGesamtFlaeche();
+
+    schliesseEinzelneFlaecheHistorie();
+    zeigeTab('flaeche');
+}
+
+function versendeAusgewaehlteBerechnung() {
+    if (!ausgewaehlteBerechnung) return;
+
+    let message = `Berechnung: ${ausgewaehlteBerechnung.name}\n`;
+    message += `Datum: ${ausgewaehlteBerechnung.datum}\n\n`;
+    ausgewaehlteBerechnung.raeume.forEach(raum => {
+        message += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²\n`;
+    });
+    const gesamtflaeche = ausgewaehlteBerechnung.raeume.reduce((sum, r) => sum + r.flaeche, 0);
+    message += `\nGesamtfläche: ${gesamtflaeche.toLocaleString('de-DE')} m²`;
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+
+    schliesseEinzelneFlaecheHistorie();
 }
 
 function loescheFlaecheBerechnung(id, event) {
@@ -1317,23 +1431,6 @@ function loescheFlaecheBerechnung(id, event) {
     flaecheHistorie = flaecheHistorie.filter(w => w.id !== id);
     localStorage.setItem('sener_flaeche_historie', JSON.stringify(flaecheHistorie));
     zeigeFlaecheHistorieImPopup();
-}
-
-function versendeFlaecheBerechnung(id, event) {
-    event.stopPropagation();
-    const berechnung = flaecheHistorie.find(w => w.id === id);
-    if (!berechnung) return;
-
-    let message = `Berechnung: ${berechnung.name}\n`;
-    message += `Datum: ${berechnung.datum}\n\n`;
-    berechnung.raeume.forEach(raum => {
-        message += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²\n`;
-    });
-    const gesamtflaeche = berechnung.raeume.reduce((sum, r) => sum + r.flaeche, 0);
-    message += `\nGesamtfläche: ${gesamtflaeche.toLocaleString('de-DE')} m²`;
-
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
 }
 
 function schliesseFlaecheHistorie() {

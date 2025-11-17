@@ -475,10 +475,10 @@
 
     <!-- Tabs -->
     <div class="tabs">
-        <button class="tab-button active" onclick="zeigeTab(event, 'winkel')">Winkel</button>
-        <button class="tab-button" onclick="zeigeTab(event, 'dreieck')">Dreieck</button>
-        <button class="tab-button" onclick="zeigeTab(event, 'kreis')">Kreis</button>
-        <button class="tab-button" onclick="zeigeTab(event, 'flaeche')">Fläche</button>
+        <button class="tab-button active" onclick="zeigeTab('winkel')">Winkel</button>
+        <button class="tab-button" onclick="zeigeTab('dreieck')">Dreieck</button>
+        <button class="tab-button" onclick="zeigeTab('kreis')">Kreis</button>
+        <button class="tab-button" onclick="zeigeTab('flaeche')">Fläche</button>
     </div>
 
     <!-- Tab Inhalt: Winkelberechnung -->
@@ -661,7 +661,11 @@
                 <span class="icon">💾</span> Berechnung Speichern
             </button>
 
-            <button onclick="oeffneFlaecheHistorie()" class="historie-button">
+            <button onclick="speichereGesamteWohnung()" class="speichern-button">
+                <span class="icon">🏠</span> Gesamte Wohnung speichern
+            </button>
+
+            <button onclick="oeffneWohnungHistorie()" class="historie-button">
                 <span class="icon">📜</span> Historie
             </button>
 
@@ -704,11 +708,6 @@
             <span class="total-label">Gesamtfläche aller Räume:</span>
             <span class="total-value" id="totalFlaeche">0.000 m²</span>
         </div>
-
-        <!-- Neuer Button: Ganze Wohnung speichern -->
-        <button onclick="speichereGesamteWohnung()" class="speichern-button">
-            <span class="icon">🏠</span> Gesamte Wohnung speichern
-        </button>
     </div>
 </div>
 
@@ -747,31 +746,11 @@
     </div>
 </div>
 
-<!-- Popup für Flächen-Historie -->
-<div id="flaecheHistoriePopup" class="popup">
-    <div class="popup-content">
-        <div class="popup-header">
-            <span>🟣 Historie der gespeicherten Berechnungen</span>
-            <button class="close-btn" onclick="schliesseFlaecheHistorie()">×</button>
-        </div>
-        <div class="popup-body">
-            <div class="history-list" id="flaecheHistoryListe">
-                <!-- Wird dynamisch gefüllt -->
-            </div>
-        </div>
-        <div style="padding: 16px; background: #1e1e1e; border-top: 1px solid #333;">
-            <button onclick="zurueckZurFlaeche()" style="width:100%; padding:12px; background-color:#28a745; color:white; border:none; border-radius:6px; font-weight:bold; font-size:16px;">
-                🔙 Zurück zur Fläche
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Popup für Wohnungsgeschichte -->
+<!-- Popup für Wohnungshistorie -->
 <div id="wohnungHistoriePopup" class="popup">
     <div class="popup-content">
         <div class="popup-header">
-            <span>🏠 Historie der gespeicherten Wohnungen</span>
+            <span>🏠 Historie der gespeicherten Berechnungen</span>
             <button class="close-btn" onclick="schliesseWohnungHistorie()">×</button>
         </div>
         <div class="popup-body">
@@ -791,7 +770,6 @@
 // --- GLOBALE VARIABLEN ---
 let berechnungsHistorie = JSON.parse(localStorage.getItem('sener_historie')) || [];
 let raumHistorie = JSON.parse(localStorage.getItem('sener_raum_historie')) || [];
-let berechnungHistorie = JSON.parse(localStorage.getItem('sener_berechnung_historie')) || [];
 let wohnungHistorie = JSON.parse(localStorage.getItem('sener_wohnung_historie')) || [];
 
 // --- ZENTRALE ROHR-NORMEN-TABELLE ---
@@ -826,8 +804,8 @@ const ROHR_NORMEN = {
     "1000": { zoll: "40\"", iso: 1016.0, ansi: 1016.00 }
 };
 
-// --- TAB-WECHSEL ---
-function zeigeTab(event, tabName) {
+// Tab-Wechsel
+function zeigeTab(tabName) {
     // Alle Tabs ausblenden
     const tabs = document.getElementsByClassName('tab-content');
     for (let i = 0; i < tabs.length; i++) {
@@ -842,28 +820,8 @@ function zeigeTab(event, tabName) {
 
     // Angeklickten Tab einblenden
     document.getElementById(tabName).classList.add('active');
-
-    // --- KORRIGIERTER TEIL ---
-    let buttonToActivate;
-    if (event && event.currentTarget) {
-        // Fall 1: Funktion wurde durch einen Klick ausgelöst
-        buttonToActivate = event.currentTarget;
-    } else {
-        // Fall 2: Funktion wurde von Code aufgerufen (z.B. nach Laden aus Historie)
-        // Finde den Button, der für diesen Tab zuständig ist
-        for (let i = 0; i < buttons.length; i++) {
-            const onclickAttr = buttons[i].getAttribute('onclick');
-            if (onclickAttr && onclickAttr.includes(`'${tabName}'`)) {
-                buttonToActivate = buttons[i];
-                break;
-            }
-        }
-    }
-
-    if (buttonToActivate) {
-        buttonToActivate.classList.add('active');
-    }
-    // --- ENDE KORREKTUR ---
+    // Angeklickten Button aktiv setzen
+    event?.currentTarget?.classList.add('active');
 
     // Menü schließen, wenn auf anderen Tab gewechselt wird
     if (tabName !== 'flaeche' && document.getElementById('aktionenMenu')) {
@@ -871,7 +829,7 @@ function zeigeTab(event, tabName) {
     }
 }
 
-// --- WINKELBERECHNUNG ---
+// --- BESTEHENDE WINKELBERECHNUNG ---
 function berechneMassen() {
     const rawInput = document.getElementById('istMasse').value.replace(/,/g, '.').replace(/\s/g, '');
     const istMasse = parseFloat(rawInput);
@@ -1088,42 +1046,35 @@ function berechneFlaeche() {
     berechneGesamtFlaeche();
 }
 
-function zeigeRaumListe() {
-    const liste = document.getElementById('raumListe');
-    if (raumHistorie.length === 0) {
-        liste.innerHTML = '<div class="empty-history">Noch keine Räume gespeichert.</div>';
+function speichereBerechnung() {
+    const berechnungName = document.getElementById('ueberschrift').value.trim();
+    if (!berechnungName) {
+        alert("Bitte geben Sie einen Namen für die Berechnung ein.");
         return;
     }
 
-    liste.innerHTML = '';
-    raumHistorie.forEach(raum => {
-        const div = document.createElement('div');
-        div.className = 'raum-item';
-        div.innerHTML = `
-            <div class="raum-name">${raum.name}</div>
-            <div class="raum-flaeche">${raum.flaeche.toLocaleString('de-DE')} m²</div>
-            <div class="raum-actions">
-                <button class="raum-delete" onclick="loescheRaum(${raum.id})">🗑️</button>
-            </div>
-        `;
-        liste.appendChild(div);
-    });
+    if (raumHistorie.length === 0) {
+        alert("Sie müssen mindestens einen Raum hinzugefügt haben, bevor Sie die Berechnung speichern können.");
+        return;
+    }
+
+    const gesamtflaeche = raumHistorie.reduce((sum, r) => sum + r.flaeche, 0);
+
+    const berechnung = {
+        id: Date.now(),
+        name: berechnungName,
+        raeume: [...raumHistorie], // Kopie der aktuellen Räume
+        gesamtflaeche: gesamtflaeche,
+        datum: new Date().toLocaleString('de-DE')
+    };
+
+    wohnungHistorie.unshift(berechnung);
+    if (wohnungHistorie.length > 20) wohnungHistorie.pop();
+    localStorage.setItem('sener_wohnung_historie', JSON.stringify(wohnungHistorie));
+
+    alert(`Berechnung "${berechnungName}" wurde erfolgreich gespeichert.`);
 }
 
-function loescheRaum(id) {
-    raumHistorie = raumHistorie.filter(r => r.id !== id);
-    localStorage.setItem('sener_raum_historie', JSON.stringify(raumHistorie));
-    zeigeRaumListe();
-    berechneGesamtFlaeche();
-}
-
-function berechneGesamtFlaeche() {
-    const gesamt = raumHistorie.reduce((sum, r) => sum + r.flaeche, 0);
-    document.getElementById('gesamtFlaeche').textContent = gesamt.toLocaleString('de-DE');
-    document.getElementById('totalFlaeche').textContent = gesamt.toLocaleString('de-DE') + " m²";
-}
-
-// --- NEUE FUNKTION: GESAMTE WOHNUNG SPEICHERN ---
 function speichereGesamteWohnung() {
     const wohnungName = document.getElementById('ueberschrift').value.trim();
     if (!wohnungName) {
@@ -1157,6 +1108,41 @@ function speichereGesamteWohnung() {
     // berechneGesamtFlaeche();
 
     alert(`Wohnung "${wohnungName}" wurde erfolgreich gespeichert.`);
+}
+
+function zeigeRaumListe() {
+    const liste = document.getElementById('raumListe');
+    if (raumHistorie.length === 0) {
+        liste.innerHTML = '<div class="empty-history">Noch keine Räume gespeichert.</div>';
+        return;
+    }
+
+    liste.innerHTML = '';
+    raumHistorie.forEach(raum => {
+        const div = document.createElement('div');
+        div.className = 'raum-item';
+        div.innerHTML = `
+            <div class="raum-name">${raum.name}</div>
+            <div class="raum-flaeche">${raum.flaeche.toLocaleString('de-DE')} m²</div>
+            <div class="raum-actions">
+                <button class="raum-delete" onclick="loescheRaum(${raum.id})">🗑️</button>
+            </div>
+        `;
+        liste.appendChild(div);
+    });
+}
+
+function loescheRaum(id) {
+    raumHistorie = raumHistorie.filter(r => r.id !== id);
+    localStorage.setItem('sener_raum_historie', JSON.stringify(raumHistorie));
+    zeigeRaumListe();
+    berechneGesamtFlaeche();
+}
+
+function berechneGesamtFlaeche() {
+    const gesamt = raumHistorie.reduce((sum, r) => sum + r.flaeche, 0);
+    document.getElementById('gesamtFlaeche').textContent = gesamt.toLocaleString('de-DE');
+    document.getElementById('totalFlaeche').textContent = gesamt.toLocaleString('de-DE') + " m²";
 }
 
 // --- VERSAND-FUNKTIONEN ---
@@ -1240,20 +1226,26 @@ function speichereAlsPDF() {
 
 function versendeErgebnisse() {
     const mailtoLink = 'mailto:?subject=Flächenberechnung&body=';
-    let body = 'Flächenberechnung:\n\n';
+    let body = 'Flächenberechnung:
+';
     raumHistorie.forEach(raum => {
-        body += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²\n`;
+        body += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²
+`;
     });
-    body += `\nGesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toLocaleString('de-DE')} m²`;
+    body += `
+Gesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toLocaleString('de-DE')} m²`;
     window.location.href = mailtoLink + encodeURIComponent(body);
 }
 
 function versendePerWhatsApp() {
-    let message = 'Flächenberechnung:\n\n';
+    let message = 'Flächenberechnung:
+';
     raumHistorie.forEach(raum => {
-        message += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²\n`;
+        message += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²
+`;
     });
-    message += `\nGesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toLocaleString('de-DE')} m²`;
+    message += `
+Gesamtfläche: ${raumHistorie.reduce((sum, r) => sum + r.flaeche, 0).toLocaleString('de-DE')} m²`;
 
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -1263,131 +1255,10 @@ function versendePerWhatsApp() {
 function oeffneAktionenMenu() {
     const menu = document.getElementById('aktionenMenu');
     if (menu.style.display === 'block') {
-        menu.style.display = 'none';
+        menu.style.display = 'none'; // Menü schließen, wenn es offen ist
     } else {
-        menu.style.display = 'block';
+        menu.style.display = 'block'; // Menü öffnen, wenn es geschlossen ist
     }
-}
-
-// --- HISTORIE-FUNKTIONEN ---
-function oeffneWinkelHistorie() {
-    zeigeWinkelHistorieImPopup();
-    document.getElementById('winkelHistoriePopup').style.display = 'flex';
-}
-
-function zeigeWinkelHistorieImPopup() {
-    const liste = document.getElementById('winkelHistoryListe');
-    if (berechnungsHistorie.length === 0) {
-        liste.innerHTML = '<div class="empty-history">Noch keine Winkelberechnungen gespeichert.</div>';
-        return;
-    }
-
-    liste.innerHTML = '';
-    berechnungsHistorie.forEach(eintrag => {
-        const div = document.createElement('div');
-        div.className = 'history-item';
-        div.innerHTML = `
-            <div class="history-info" onclick="ladeWertAusWinkelHistorie(${eintrag.id})">
-                <div><strong>${eintrag.a.toLocaleString('de-DE')} mm</strong> (${eintrag.bereich})</div>
-                <div class="history-time">${eintrag.zeit}</div>
-                <div class="history-input">Eingabe: ${eintrag.input} mm</div>
-            </div>
-            <button class="history-delete" onclick="loescheEintrag(${eintrag.id}, event)">🗑️</button>
-        `;
-        liste.appendChild(div);
-    });
-}
-
-function ladeWertAusWinkelHistorie(id) {
-    const eintrag = berechnungsHistorie.find(e => e.id === id);
-    if (eintrag) {
-        document.getElementById('istMasse').value = eintrag.input;
-        document.getElementById('bereich').value = eintrag.bereich;
-        // KORREKTUR: Direkter Aufruf mit 'null' für das event-Objekt
-        zeigeTab(null, 'winkel');
-        setTimeout(berechneMassen, 300); // Optional: Nachladen der Berechnung
-    }
-}
-
-function loescheEintrag(id, event) {
-    if (event) event.stopPropagation();
-    berechnungsHistorie = berechnungsHistorie.filter(e => e.id !== id);
-    localStorage.setItem('sener_historie', JSON.stringify(berechnungsHistorie));
-    zeigeWinkelHistorieImPopup();
-}
-
-function schliesseWinkelHistorie() {
-    document.getElementById('winkelHistoriePopup').style.display = 'none';
-}
-
-function zurueckZurWinkelBerechnung() {
-    schliesseWinkelHistorie();
-    // KORREKTUR: Direkter Aufruf mit 'null' für das event-Objekt
-    zeigeTab(null, 'winkel');
-}
-
-function oeffneFlaecheHistorie() {
-    zeigeFlaecheHistorieImPopup();
-    document.getElementById('flaecheHistoriePopup').style.display = 'flex';
-}
-
-function zeigeFlaecheHistorieImPopup() {
-    const liste = document.getElementById('flaecheHistoryListe');
-    if (berechnungHistorie.length === 0) {
-        liste.innerHTML = '<div class="empty-history">Noch keine Berechnungen gespeichert.</div>';
-        return;
-    }
-
-    liste.innerHTML = '';
-    berechnungHistorie.forEach(berechnung => {
-        const div = document.createElement('div');
-        div.className = 'wohnung-item';
-        div.innerHTML = `
-            <div class="wohnung-name">${berechnung.name}</div>
-            <div class="wohnung-flaeche">${berechnung.gesamtflaeche.toLocaleString('de-DE')} m²</div>
-            <div class="wohnung-actions">
-                <button class="wohnung-delete" onclick="loescheBerechnung(${berechnung.id}, event)">🗑️</button>
-                <button class="wohnung-send" onclick="versendeBerechnung(${berechnung.id}, event)">💬</button>
-            </div>
-        `;
-        liste.appendChild(div);
-    });
-}
-
-function loescheBerechnung(id, event) {
-    event.stopPropagation();
-    if (!confirm("Sind Sie sicher, dass Sie diese Berechnung löschen möchten?")) return;
-
-    berechnungHistorie = berechnungHistorie.filter(w => w.id !== id);
-    localStorage.setItem('sener_berechnung_historie', JSON.stringify(berechnungHistorie));
-    zeigeFlaecheHistorieImPopup();
-}
-
-function versendeBerechnung(id, event) {
-    event.stopPropagation();
-    const berechnung = berechnungHistorie.find(w => w.id === id);
-    if (!berechnung) return;
-
-    let message = `Berechnung: ${berechnung.name}\n`;
-    message += `Datum: ${berechnung.datum}\n\n`;
-    berechnung.raeume.forEach(raum => {
-        message += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²\n`;
-    });
-    const gesamtflaeche = berechnung.raeume.reduce((sum, r) => sum + r.flaeche, 0);
-    message += `\nGesamtfläche: ${gesamtflaeche.toLocaleString('de-DE')} m²`;
-
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
-}
-
-function schliesseFlaecheHistorie() {
-    document.getElementById('flaecheHistoriePopup').style.display = 'none';
-}
-
-function zurueckZurFlaeche() {
-    schliesseFlaecheHistorie();
-    // KORREKTUR: Direkter Aufruf mit 'null' für das event-Objekt
-    zeigeTab(null, 'flaeche');
 }
 
 // --- WOHNUNGSHISTORIE ---
@@ -1433,13 +1304,17 @@ function versendeWohnung(id, event) {
     const wohnung = wohnungHistorie.find(w => w.id === id);
     if (!wohnung) return;
 
-    let message = `Wohnung: ${wohnung.name}\n`;
-    message += `Datum: ${wohnung.datum}\n\n`;
+    let message = `Wohnung: ${wohnung.name}
+`;
+    message += `Datum: ${wohnung.datum}
+`;
     wohnung.raeume.forEach(raum => {
-        message += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²\n`;
+        message += `${raum.name}: ${raum.laenge} ${raum.laengeEinheit} x ${raum.breite} ${raum.breiteEinheit} = ${raum.flaeche.toLocaleString('de-DE')} m²
+`;
     });
     const gesamtflaeche = wohnung.raeume.reduce((sum, r) => sum + r.flaeche, 0);
-    message += `\nGesamtfläche: ${gesamtflaeche.toLocaleString('de-DE')} m²`;
+    message += `
+Gesamtfläche: ${gesamtflaeche.toLocaleString('de-DE')} m²`;
 
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -1449,10 +1324,69 @@ function schliesseWohnungHistorie() {
     document.getElementById('wohnungHistoriePopup').style.display = 'none';
 }
 
-function zurueckZurWohnungFlaeche() {
+function zurueckZurFlaeche() {
     schliesseWohnungHistorie();
-    // KORREKTUR: Direkter Aufruf mit 'null' für das event-Objekt
-    zeigeTab(null, 'flaeche');
+    setTimeout(() => {
+        zeigeTab(null, 'flaeche'); // <- KORRIGIERT: 'null' für das event-Objekt
+    }, 300);
+}
+
+// --- BESTEHENDE HISTORIE-FUNKTIONEN ---
+function oeffneWinkelHistorie() {
+    zeigeWinkelHistorieImPopup();
+    document.getElementById('winkelHistoriePopup').style.display = 'flex';
+}
+
+function zeigeWinkelHistorieImPopup() {
+    const liste = document.getElementById('winkelHistoryListe');
+    if (berechnungsHistorie.length === 0) {
+        liste.innerHTML = '<div class="empty-history">Noch keine Winkelberechnungen gespeichert.</div>';
+        return;
+    }
+
+    liste.innerHTML = '';
+    berechnungsHistorie.forEach(eintrag => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `
+            <div class="history-info" onclick="ladeWertAusWinkelHistorie(${eintrag.id})">
+                <div><strong>${eintrag.a.toLocaleString('de-DE')} mm</strong> (${eintrag.bereich})</div>
+                <div class="history-time">${eintrag.zeit}</div>
+                <div class="history-input">Eingabe: ${eintrag.input} mm</div>
+            </div>
+            <button class="history-delete" onclick="loescheEintrag(${eintrag.id}, event)">🗑️</button>
+        `;
+        liste.appendChild(div);
+    });
+}
+
+function ladeWertAusWinkelHistorie(id) {
+    const eintrag = berechnungsHistorie.find(e => e.id === id);
+    if (eintrag) {
+        document.getElementById('istMasse').value = eintrag.input;
+        document.getElementById('bereich').value = eintrag.bereich;
+        // Stelle sicher, dass der Winkel-Tab aktiv ist
+        zeigeTab(null, 'winkel'); // <- KORRIGIERT: 'null' für das event-Objekt
+        setTimeout(berechneMassen, 300);
+    }
+}
+
+function loescheEintrag(id, event) {
+    if (event) event.stopPropagation();
+    berechnungsHistorie = berechnungsHistorie.filter(e => e.id !== id);
+    localStorage.setItem('sener_historie', JSON.stringify(berechnungsHistorie));
+    zeigeWinkelHistorieImPopup();
+}
+
+function schliesseWinkelHistorie() {
+    document.getElementById('winkelHistoriePopup').style.display = 'none';
+}
+
+function zurueckZurWinkelBerechnung() {
+    schliesseWinkelHistorie();
+    setTimeout(() => {
+        zeigeTab(null, 'winkel'); // <- KORRIGIERT: 'null' für das event-Objekt
+    }, 300);
 }
 
 // ===== 3er-Reihe =====
@@ -1476,13 +1410,12 @@ function schliessePopup() {
 document.addEventListener('DOMContentLoaded', () => {
     berechnungsHistorie = JSON.parse(localStorage.getItem('sener_historie')) || [];
     raumHistorie = JSON.parse(localStorage.getItem('sener_raum_historie')) || [];
-    berechnungHistorie = JSON.parse(localStorage.getItem('sener_berechnung_historie')) || [];
     wohnungHistorie = JSON.parse(localStorage.getItem('sener_wohnung_historie')) || [];
     zeigeRaumListe();
     berechneGesamtFlaeche();
 });
 
-// Service Worker registrieren (relativer Pfad)
+// Service Worker registrieren
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js') // Relativer Pfad
